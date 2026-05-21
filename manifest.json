@@ -2,7 +2,7 @@
   "name": "SEYRÜSEFER",
   "short_name": "Seyrüsefer",
   "description": "Otobüs sektörü profesyonelleri için iş ilanları ve navigasyon platformu.",
-  "start_url": "/",
+  "start_url": "/seyrusefer/",
   "display": "standalone",
   "background_color": "#0a0a0a",
   "theme_color": "#f5a623",
