@@ -19,6 +19,10 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{width:100%;height:100%;overflow:hidden;font-family:'Inter',system-ui,sans-serif;background:#0a0a0a;color:#fff;-webkit-font-smoothing:antialiased;user-select:none;}
@@ -470,7 +474,7 @@ textarea.inp{resize:none;min-height:80px;line-height:1.5;}
         <label class="inp-lbl">Sıfırlama Linki İçin E-posta</label>
         <div style="display:flex;gap:8px">
           <input class="inp" type="email" id="f-email" placeholder="ornek@email.com" style="margin-bottom:0">
-          <button class="btn-primary" style="margin-top:0;width:auto;padding:0 16px" onclick="document.getElementById('forgot-pass-box').style.display='none';showToast('Sıfırlama bağlantısı gönderildi')">Gönder</button>
+          <button class="btn-primary" style="margin-top:0;width:auto;padding:0 16px" onclick="sendForgotPassword()">Gönder</button>
         </div>
       </div>
       <button class="btn-primary" onclick="doLogin()">Giriş Yap</button>
@@ -933,6 +937,30 @@ textarea.inp{resize:none;min-height:80px;line-height:1.5;}
 </div><!-- /app -->
 <script>
 // ══════════════════════════════════
+// FIREBASE CONFIG — buraya kendi config'ini yapıştır
+// ══════════════════════════════════
+const firebaseConfig = {
+  apiKey: "BURAYA_API_KEY",
+  authDomain: "BURAYA_AUTH_DOMAIN",
+  projectId: "BURAYA_PROJECT_ID",
+  storageBucket: "BURAYA_STORAGE_BUCKET",
+  messagingSenderId: "BURAYA_MESSAGING_SENDER_ID",
+  appId: "BURAYA_APP_ID"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+const storage = firebase.storage();
+
+// ══════════════════════════════════
+// IN-MEMORY CACHE
+// ══════════════════════════════════
+let cachedIlans = [];
+let cachedUsers = {}; // uid → user doc
+let cachedConvs = [];
+let ilanListener = null, convListener = null, msgListener = null;
+
+// ══════════════════════════════════
 // DATA HELPERS
 // ══════════════════════════════════
 const ONE_MONTH = 30*24*60*60*1000;
@@ -943,49 +971,92 @@ const FIRM_ROLES=['firma','arac'];
 function isWorker(rol){return WORKER_ROLES.includes(rol)}
 function isFirm(rol){return FIRM_ROLES.includes(rol)}
 function rolLabel(r){return POS[r]||r||'Belirtilmedi'}
-function getUsers(){try{return JSON.parse(localStorage.getItem('ss_users')||'[]')}catch{return[]}}
-function saveUsers(u){localStorage.setItem('ss_users',JSON.stringify(u))}
-function getIlans(){try{return JSON.parse(localStorage.getItem('ss_ilans')||'[]')}catch{return[]}}
-function saveIlans(arr){localStorage.setItem('ss_ilans',JSON.stringify(arr))}
-function getConvs(){try{return JSON.parse(localStorage.getItem('ss_convs')||'[]')}catch{return[]}}
-function saveConvs(arr){localStorage.setItem('ss_convs',JSON.stringify(arr))}
 function isExpired(ilan){return Date.now()-ilan.ts > ONE_MONTH}
 function daysLeft(ilan){return Math.max(0,Math.ceil((ONE_MONTH-(Date.now()-ilan.ts))/(24*60*60*1000)))}
 function fmtDate(ts){const d=new Date(ts);return d.toLocaleDateString('tr-TR',{day:'2-digit',month:'2-digit',year:'2-digit'})}
 function fmtTime(ts){const d=new Date(ts);return d.toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'})}
-// Seed default data if empty
-function seedData(){
-  if(getIlans().length>0) return;
-  const now=Date.now();
-  saveIlans([
-    {id:7,tip:'firma',rol:'muavin',firm:'Kamilkoç',from:'Antalya',to:'İstanbul',tarih:'25.05.2026',saat:'19:00',ucret:'1.800',st:'yeni',ts:now-2*24*60*60*1000,owner:'demo@firma.com'},
-    {id:6,tip:'firma',rol:'hostes',firm:'Nilüfer Turizm',from:'İstanbul',to:'Ankara',tarih:'24.05.2026',saat:'21:00',ucret:'1.300',st:'normal',ts:now-3*24*60*60*1000,owner:'demo@firma.com'},
-    {id:5,tip:'firma',rol:'kaptan',firm:'Ulusoy',from:'Ankara',to:'İzmir',tarih:'23.05.2026',saat:'18:00',ucret:'3.500',st:'acil',ts:now-4*24*60*60*1000,owner:'demo@firma.com'},
-    {id:4,tip:'personel',rol:'muavin',firm:'',from:'İzmir',to:'İstanbul',tarih:'22.05.2026',saat:'',ucret:'1.500',st:'yeni',ts:now-5*24*60*60*1000,owner:'muavin@test.com',rota:'İzmir - İstanbul',note:'10 yıl deneyim'},
-    {id:3,tip:'firma',rol:'yedek',firm:'Pamukkale',from:'İzmir',to:'İstanbul',tarih:'21.05.2026',saat:'12:00',ucret:'2.800',st:'normal',ts:now-6*24*60*60*1000,owner:'demo@firma.com'},
-    {id:2,tip:'personel',rol:'hostes',firm:'',from:'Ankara',to:'',tarih:'',saat:'',ucret:'1.400',st:'yeni',ts:now-7*24*60*60*1000,owner:'hostes@test.com',rota:'Esnek',note:'Hosteslik sertifikam var'},
-    {id:1,tip:'firma',rol:'kaptan',firm:'Varan Turizm',from:'İstanbul',to:'İzmir',tarih:'Bugün',saat:'22:00',ucret:'3.200',st:'acil',ts:now-8*24*60*60*1000,owner:'demo@firma.com'},
-  ]);
+
+async function getUserDoc(uid) {
+  if (cachedUsers[uid]) return cachedUsers[uid];
+  try {
+    const doc = await db.collection('users').doc(uid).get();
+    if (doc.exists) cachedUsers[uid] = doc.data();
+    return cachedUsers[uid] || null;
+  } catch(e) { return null; }
 }
+
+function showBtnLoading(btnId, loading) {
+  const btns = document.querySelectorAll('.btn-primary');
+  btns.forEach(b => b.disabled = loading);
+}
+
+// ══════════════════════════════════
+// FIRESTORE LISTENERS
+// ══════════════════════════════════
+function startIlanListener() {
+  if (ilanListener) ilanListener();
+  ilanListener = db.collection('ilans')
+    .where('active', '==', true)
+    .orderBy('ts', 'desc')
+    .limit(100)
+    .onSnapshot(snap => {
+      cachedIlans = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+      renderIlanlar();
+      updateUI();
+    }, err => console.error('ilan listener', err));
+}
+
+function startListeners(uid) {
+  startIlanListener();
+  if (convListener) convListener();
+  convListener = db.collection('convs')
+    .where('participants', 'array-contains', uid)
+    .orderBy('lastTs', 'desc')
+    .onSnapshot(snap => {
+      cachedConvs = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+      renderProfileMsgs();
+      updateUI();
+    }, err => console.error('conv listener', err));
+}
+
+function stopListeners() {
+  if (ilanListener) { ilanListener(); ilanListener = null; }
+  if (convListener) { convListener(); convListener = null; }
+  if (msgListener) { msgListener(); msgListener = null; }
+}
+
 // ══════════════════════════════════
 // AUTH
 // ══════════════════════════════════
-let currentUser=null;
-function loadUser(){
-  let s=localStorage.getItem('ss_user') || sessionStorage.getItem('ss_user');
-  if(s)try{currentUser=JSON.parse(s)}catch{currentUser=null}
-}
-function saveUser(u, remember = true){
-  currentUser=u;
-  if(remember){
-    localStorage.setItem('ss_user',JSON.stringify(u));
-    sessionStorage.removeItem('ss_user');
+let currentUser = null;
+
+auth.onAuthStateChanged(async (fbUser) => {
+  if (fbUser) {
+    try {
+      const doc = await db.collection('users').doc(fbUser.uid).get();
+      if (doc.exists) {
+        currentUser = { uid: fbUser.uid, email: fbUser.email, ...doc.data() };
+        cachedUsers[fbUser.uid] = doc.data();
+      } else {
+        currentUser = { uid: fbUser.uid, email: fbUser.email, name: fbUser.email.split('@')[0], rol: 'kaptan' };
+      }
+    } catch(e) {
+      currentUser = { uid: fbUser.uid, email: fbUser.email, name: fbUser.email.split('@')[0], rol: 'kaptan' };
+    }
+    startListeners(fbUser.uid);
   } else {
-    sessionStorage.setItem('ss_user',JSON.stringify(u));
-    localStorage.removeItem('ss_user');
+    currentUser = null;
+    stopListeners();
+    cachedIlans = [];
+    cachedConvs = [];
+    startIlanListener(); // misafir de ilanları görebilsin
   }
-}
+  updateUI();
+  renderIlanlar();
+});
+
 function isLoggedIn(){return currentUser!==null}
+
 function toggleFirmField(){
   const rol=document.getElementById('r-rol').value;
   const fg=document.getElementById('firm-adi-group');
@@ -997,17 +1068,31 @@ function switchTab(t){
   document.getElementById('tab-login').classList.toggle('active',t==='login');
   document.getElementById('tab-register').classList.toggle('active',t==='register');
 }
-function doLogin(){
+
+async function doLogin(){
   const email=document.getElementById('l-email').value.trim();
   const pass=document.getElementById('l-pass').value;
   const remember=document.getElementById('l-remember')?.checked ?? true;
   if(!email||!pass){showToast('Tüm alanları doldurun');return}
-  const users=getUsers();
-  const found=users.find(u=>u.email===email&&u.pass===pass);
-  if(found){saveUser(found, remember);updateUI();navTo('s3');showToast('Hoş geldiniz! 🎉')}
-  else showToast('E-posta veya şifre hatalı');
+  showBtnLoading('login-btn', true);
+  try {
+    const persistence = remember
+      ? firebase.auth.Auth.Persistence.LOCAL
+      : firebase.auth.Auth.Persistence.SESSION;
+    await auth.setPersistence(persistence);
+    await auth.signInWithEmailAndPassword(email, pass);
+    navTo('s3');
+    showToast('Hoş geldiniz! 🎉');
+  } catch(e) {
+    const msg = (e.code === 'auth/wrong-password' || e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential')
+      ? 'E-posta veya şifre hatalı'
+      : 'Giriş başarısız, tekrar deneyin';
+    showToast(msg);
+  }
+  showBtnLoading('login-btn', false);
 }
-function doRegister(){
+
+async function doRegister(){
   const name=document.getElementById('r-name').value.trim();
   const email=document.getElementById('r-email').value.trim();
   const pass=document.getElementById('r-pass').value;
@@ -1018,14 +1103,56 @@ function doRegister(){
   if(!agree){showToast('Kullanım koşullarını kabul edin');return}
   if(pass.length!==6){showToast('Şifre tam 6 haneli rakam olmalı');return}
   if(isFirm(rol)&&!firm){showToast('Firma adı zorunlu');return}
-  const user={name,email,pass,rol,firmAdi:firm,avatar:tempAvatarBase64,cv:{about:'',exp:'',edu:'',lic:'',contact:'',visible:false}};
-  const users=getUsers();
-  if(users.find(u=>u.email===email)){showToast('Bu e-posta zaten kayıtlı');return}
-  users.push(user);saveUsers(users);saveUser(user, true);updateUI();navTo('s3');
-  showSuc('🎉','Hoş Geldiniz!','Kaydınız başarıyla tamamlandı.');
+  showBtnLoading('register-btn', true);
+  try {
+    const cred = await auth.createUserWithEmailAndPassword(email, pass);
+    const uid = cred.user.uid;
+    const userData = {
+      name, email, rol, firmAdi: firm,
+      avatarUrl: null,
+      cv: { about: '', exp: '', edu: '', lic: '', contact: '', visible: false },
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    await db.collection('users').doc(uid).set(userData);
+    // Upload avatar if selected
+    if (tempAvatarFile) {
+      try {
+        const ref = storage.ref(`users/${uid}/avatar`);
+        await ref.put(tempAvatarFile);
+        const url = await ref.getDownloadURL();
+        await db.collection('users').doc(uid).update({ avatarUrl: url });
+      } catch(avatarErr) { console.error('Avatar upload failed', avatarErr); }
+    }
+    navTo('s3');
+    showSuc('🎉', 'Hoş Geldiniz!', 'Kaydınız başarıyla tamamlandı.');
+  } catch(e) {
+    const msg = e.code === 'auth/email-already-in-use'
+      ? 'Bu e-posta zaten kayıtlı'
+      : ('Kayıt başarısız: ' + e.message);
+    showToast(msg);
+  }
+  showBtnLoading('register-btn', false);
 }
-function guestMode(){currentUser=null;localStorage.removeItem('ss_user');sessionStorage.removeItem('ss_user');updateUI();navTo('s4')}
-function logout(){currentUser=null;localStorage.removeItem('ss_user');sessionStorage.removeItem('ss_user');updateUI();navTo('s1');showToast('Çıkış yapıldı')}
+
+function guestMode(){ navTo('s4'); }
+
+function logout(){
+  stopListeners();
+  auth.signOut();
+  navTo('s1');
+  showToast('Çıkış yapıldı');
+}
+
+async function sendForgotPassword() {
+  const email = document.getElementById('f-email').value.trim();
+  if (!email) { showToast('E-posta girin'); return; }
+  try {
+    await auth.sendPasswordResetEmail(email);
+    document.getElementById('forgot-pass-box').style.display = 'none';
+    showToast('Şifre sıfırlama bağlantısı gönderildi');
+  } catch(e) { showToast('E-posta bulunamadı'); }
+}
+
 // ══════════════════════════════════
 // UI UPDATE
 // ══════════════════════════════════
@@ -1034,8 +1161,8 @@ function updateUI(){
   // Nav menu
   const av=document.getElementById('nm-avatar');
   if(av) {
-    if(u && u.avatar){
-      av.style.backgroundImage=`url(${u.avatar})`;
+    if(u && u.avatarUrl){
+      av.style.backgroundImage=`url(${u.avatarUrl})`;
       av.style.backgroundSize='cover';
       av.style.backgroundPosition='center';
       av.textContent='';
@@ -1056,8 +1183,8 @@ function updateUI(){
   // Profile
   const pa=document.getElementById('p-avatar');
   if(pa) {
-    if(u && u.avatar){
-      pa.style.backgroundImage=`url(${u.avatar})`;
+    if(u && u.avatarUrl){
+      pa.style.backgroundImage=`url(${u.avatarUrl})`;
       pa.style.backgroundSize='cover';
       pa.style.backgroundPosition='center';
       pa.textContent='';
@@ -1073,8 +1200,8 @@ function updateUI(){
   const pr=document.getElementById('p-role');
   if(pr) pr.textContent=u?rolLabel(u.rol):'Üye Değil';
   // Stats
-  const myIlans=u?getIlans().filter(i=>i.owner===u.email&&!isExpired(i)):[];
-  const myConvs=u?getConvs().filter(c=>c.applicant===u.email||c.poster===u.email):[];
+  const myIlans=u?cachedIlans.filter(i=>i.owner===u.uid&&!isExpired(i)):[];
+  const myConvs=u?cachedConvs.filter(c=>c.applicant===u.uid||c.poster===u.uid):[];
   const s1=document.getElementById('p-stat1');if(s1)s1.textContent=myIlans.length;
   const s2=document.getElementById('p-stat2');if(s2)s2.textContent=myConvs.length;
   const s3=document.getElementById('p-stat3');if(s3)s3.textContent=u?'4.8⭐':'—';
@@ -1092,7 +1219,7 @@ function updateUI(){
   const sub=document.getElementById('s3-subtitle');
   if(sub)sub.textContent=u?'Bugün yeni ilanlar var!':'Giriş yaparak tüm özelliklere erişin';
   // Stats home
-  const ilans=getIlans().filter(i=>!isExpired(i));
+  const ilans=cachedIlans.filter(i=>!isExpired(i));
   const sa=document.getElementById('stat-active');if(sa)sa.textContent=ilans.length;
   const su=document.getElementById('stat-urgent');if(su)su.textContent=ilans.filter(i=>i.st==='acil').length;
   const sc=document.getElementById('s3-ilan-cnt');if(sc)sc.textContent=ilans.length+' ilan';
@@ -1104,7 +1231,7 @@ function updateUI(){
   if(u){
     const ml = document.getElementById('myilans-list');
     if(ml){
-      const allMy = getIlans().filter(i=>i.owner===u.email);
+      const allMy = cachedIlans.filter(i=>i.owner===u.uid);
       if(!allMy.length) ml.innerHTML = '<div style="color:#555;font-size:12px;padding:12px;text-align:center">Hiç ilanınız yok.</div>';
       else {
         ml.innerHTML = allMy.map(i=>{
@@ -1116,18 +1243,17 @@ function updateUI(){
             </div>
             <div style="font-size:12px;color:#aaa;margin-bottom:10px">${i.tarih||'Esnek Tarih'} - ${i.tip==='firma'?'Firma İlanı':'İş Arama'}</div>
             <div style="display:flex;gap:6px">
-              ${exp?`<button style="flex:1;background:rgba(245,158,11,0.1);color:#f59e0b;border:1px solid rgba(245,158,11,0.2);padding:6px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer" onclick="republishIlan(${i.id})">🔄 Tekrar Yayınla</button>`:''}
-              <button style="flex:1;background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);padding:6px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer" onclick="deleteIlan(${i.id})">🗑️ Sil</button>
+              ${exp?`<button style="flex:1;background:rgba(245,158,11,0.1);color:#f59e0b;border:1px solid rgba(245,158,11,0.2);padding:6px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer" onclick="republishIlan('${i.id}')">🔄 Tekrar Yayınla</button>`:''}
+              <button style="flex:1;background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);padding:6px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer" onclick="deleteIlan('${i.id}')">🗑️ Sil</button>
             </div>
           </div>`;
         }).join('');
       }
     }
-    const convs=getConvs();
     let unread=0;
-    convs.forEach(c=>{
-      if(c.poster===u.email) unread+=c.posterUnread||0;
-      if(c.applicant===u.email) unread+=c.applicantUnread||0;
+    cachedConvs.forEach(c=>{
+      if(c.poster===u.uid) unread+=c.posterUnread||0;
+      if(c.applicant===u.uid) unread+=c.applicantUnread||0;
     });
     const mb=document.getElementById('msgs-badge');
     if(mb){mb.style.display=unread>0?'inline-block':'none';mb.textContent=unread;}
@@ -1281,12 +1407,13 @@ function togglePass(id,btn){
   btn.textContent=show?'🙈':'👁';
 }
 let tempAvatarBase64 = null;
+let tempAvatarFile = null;
 function onAvatarSelect(input, previewId, autoSave=false){
   const f=input.files[0];
   if(!f) return;
   if(f.size>2*1024*1024){showToast('Fotoğraf 2MB\'dan küçük olmalı');input.value='';return;}
   const reader = new FileReader();
-  reader.onload = function(e){
+  reader.onload = async function(e){
     const base64 = e.target.result;
     const prev = document.getElementById(previewId);
     if(prev){
@@ -1296,15 +1423,19 @@ function onAvatarSelect(input, previewId, autoSave=false){
       prev.textContent = '';
     }
     if(autoSave && currentUser){
-      currentUser.avatar = base64;
-      saveUser(currentUser);
-      const users=getUsers();
-      const idx=users.findIndex(u=>u.email===currentUser.email);
-      if(idx>=0){users[idx].avatar=base64;saveUsers(users);}
-      updateUI();
-      showToast('Profil fotoğrafı güncellendi');
+      try {
+        const ref = storage.ref(`users/${currentUser.uid}/avatar`);
+        await ref.put(f);
+        const url = await ref.getDownloadURL();
+        await db.collection('users').doc(currentUser.uid).update({avatarUrl: url});
+        currentUser.avatarUrl = url;
+        cachedUsers[currentUser.uid] = {...(cachedUsers[currentUser.uid]||{}), avatarUrl: url};
+        updateUI();
+        showToast('Profil fotoğrafı güncellendi');
+      } catch(err) { showToast('Fotoğraf yüklenemedi'); }
     } else {
       tempAvatarBase64 = base64;
+      tempAvatarFile = f;
     }
   };
   reader.readAsDataURL(f);
@@ -1316,22 +1447,15 @@ function onCvFileSelect(input){
     if(f.size>5*1024*1024){showToast('Dosya 5MB\'dan küçük olmalı');input.value='';return;}
     nm.style.display='block';
     nm.textContent='📄 '+f.name;
-    const reader = new FileReader();
-    reader.onload = function(e){
-      input.dataset.base64 = e.target.result;
-      input.dataset.filename = f.name;
-    };
-    reader.readAsDataURL(f);
   }
 }
 // ══════════════════════════════════
 // LISTINGS
 // ══════════════════════════════════
-let ilanCtr=200;
 const stLbl={acil:'ACİL',yeni:'YENİ',normal:'NORMAL'};
 const barCls={acil:'red',yeni:'green',normal:''};
 function renderIlanlar(){
-  const list=getIlans().filter(i=>!isExpired(i));
+  const list=cachedIlans.filter(i=>!isExpired(i));
   let filtered=list.filter(i=>{
     const rOk=!filterRol||i.rol===filterRol||(filterRol==='hostes'&&i.rol==='host');
     const sOk=!filterSehir||(i.from||'').toLocaleLowerCase('tr-TR').includes(filterSehir.toLocaleLowerCase('tr-TR'))||(i.to||'').toLocaleLowerCase('tr-TR').includes(filterSehir.toLocaleLowerCase('tr-TR'));
@@ -1349,12 +1473,11 @@ function renderIlanlar(){
   else if(currentSort==='eski') filtered=filtered.slice().sort((a,b)=>a.ts-b.ts);
   else if(currentSort==='acil') filtered=filtered.slice().sort((a,b)=>({acil:0,yeni:1,normal:2}[a.st]||2)-({acil:0,yeni:1,normal:2}[b.st]||2));
   const u=currentUser;
-  const convs=getConvs();
   const el=document.getElementById('ilan-list');
   if(!el) return;
   el.innerHTML=filtered.length ? filtered.map(i=>{
-    const isMine=u&&i.owner===u.email;
-    const conv=u?convs.find(c=>c.ilanId===i.id&&(c.applicant===u.email||c.poster===u.email)):null;
+    const isMine=u&&i.owner===u.uid;
+    const conv=u?cachedConvs.find(c=>c.ilanId===i.id&&(c.applicant===u.uid||c.poster===u.uid)):null;
     const applied=!!conv;
     const days=daysLeft(i);
     const isFirmaListing=i.tip==='firma';
@@ -1362,13 +1485,15 @@ function renderIlanlar(){
     if(!u){
       btnHtml=`<button class="ic-btn-lock" style="width:100%" onclick="navTo('s2')">🔒 Giriş Yaparak Başvur</button>`;
     } else if(isMine){
-      btnHtml=`<button class="ic-btn-i" onclick="deleteIlan(${i.id})">🗑️ Sil</button><button class="ic-btn-i" onclick="openDetail(${i.id})">İncele</button>`;
+      btnHtml=`<button class="ic-btn-i" onclick="deleteIlan('${i.id}')">🗑️ Sil</button><button class="ic-btn-i" onclick="openDetail('${i.id}')">İncele</button>`;
     } else if(applied){
-      btnHtml=`<button class="ic-btn-i" onclick="openDetail(${i.id})">İncele</button><button class="ic-btn-msg" onclick="openConvById('${conv.id}')">💬 Mesajlar</button>`;
+      btnHtml=`<button class="ic-btn-i" onclick="openDetail('${i.id}')">İncele</button><button class="ic-btn-msg" onclick="openConvById('${conv.id}')">💬 Mesajlar</button>`;
     } else {
-      btnHtml=`<button class="ic-btn-i" onclick="openDetail(${i.id})">İncele</button><button class="ic-btn-b" onclick="startChat(${i.id})">BAŞVUR</button>`;
+      btnHtml=`<button class="ic-btn-i" onclick="openDetail('${i.id}')">İncele</button><button class="ic-btn-b" onclick="startChat('${i.id}')">BAŞVUR</button>`;
     }
     const fakeRating = `<span style="font-size:11px;color:#f5a623;background:rgba(245,166,35,0.15);padding:2px 5px;border-radius:4px;margin-left:6px;vertical-align:middle">4.8⭐</span>`;
+    const ownerDoc = cachedUsers[i.owner];
+    const tipBadge = i.tip==='firma' ? (ownerDoc?.rol==='arac'?'Araç Sahibi':'Firma') : 'Personel';
     const titleLine=isFirmaListing
       ? `<div class="ic-name">${POS[i.rol]||i.rol} Aranıyor${fakeRating}</div>${u?`<div class="ic-firm">${i.firm||'—'}</div>`:''}`
       : `<div class="ic-name">${POS[i.rol]||i.rol} — İş Arıyor${fakeRating}</div>${u?`<div class="ic-firm">${i.rota||'Esnek güzergah'}</div>`:''}`;
@@ -1383,7 +1508,7 @@ function renderIlanlar(){
           <div style="flex:1">${titleLine}</div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
             <span class="ic-status ${i.st}">${stLbl[i.st]}</span>
-            <span class="ic-tip-badge ${i.tip}">${i.tip==='firma'?(getUsers().find(x=>x.email===i.owner)?.rol==='arac'?'Araç Sahibi':'Firma'):'Personel'}</span>
+            <span class="ic-tip-badge ${i.tip}">${tipBadge}</span>
           </div>
         </div>
         <div class="ic-grid">
@@ -1398,38 +1523,31 @@ function renderIlanlar(){
   }).join('') : '<div class="no-ilan">🔍 İlan bulunamadı</div>';
 }
 // Delete listing
-function deleteIlan(id){
-  const ilans=getIlans().filter(i=>i.id!==id);
-  saveIlans(ilans);
-  renderIlanlar();
-  updateUI();
-  showToast('İlan silindi');
+async function deleteIlan(id){
+  try {
+    await db.collection('ilans').doc(id).update({ active: false });
+    showToast('İlan kaldırıldı');
+  } catch(e) { showToast('Silinemedi'); }
 }
-function republishIlan(id){
-  const ilans = getIlans();
-  const i = ilans.find(x=>x.id===id);
-  if(i){
-    i.ts = Date.now();
-    saveIlans(ilans);
-    renderIlanlar();
-    updateUI();
+async function republishIlan(id){
+  try {
+    await db.collection('ilans').doc(id).update({ ts: Date.now(), active: true });
     showToast('İlan tekrar yayına alındı');
-  }
+  } catch(e) { showToast('Hata: ' + e.message); }
 }
 // Detail overlay
 let detailIlanId=null;
 function openDetail(id){
-  const i=getIlans().find(x=>x.id===id);
+  const i=cachedIlans.find(x=>x.id===id);
   if(!i) return;
   detailIlanId=id;
   const u=currentUser;
   const isMember=!!u;
-  const isMine=u&&i.owner===u.email;
-  const convs=getConvs();
-  const conv=u?convs.find(c=>c.ilanId===id&&(c.applicant===u.email||c.poster===u.email)):null;
+  const isMine=u&&i.owner===u.uid;
+  const conv=u?cachedConvs.find(c=>c.ilanId===id&&(c.applicant===u.uid||c.poster===u.uid)):null;
   document.getElementById('det-title').innerHTML=`${AVT[i.rol]||'🚌'} ${i.tip==='firma'?(POS[i.rol]+' Aranıyor'):(POS[i.rol]+' İş Arıyor')}`;
-  const posterRol = getUsers().find(x=>x.email===i.owner)?.rol;
-  const firmaLabel = posterRol === 'arac' ? 'Araç Sahibi' : 'Firma';
+  const ownerDoc = cachedUsers[i.owner];
+  const firmaLabel = ownerDoc?.rol === 'arac' ? 'Araç Sahibi' : 'Firma';
   const rows=[
     i.tip==='firma'?[firmaLabel,i.firm||'—']:['İlan Tipi','İş Arıyorum'],
     ['Pozisyon',POS[i.rol]||i.rol],
@@ -1447,12 +1565,20 @@ function openDetail(id){
   if(cvSec&&cvCont){
     if(isMember&&isFirm(u.rol)&&i.tip==='personel'){
       cvSec.style.display='block';
-      const users=getUsers();
-      const poster=users.find(uu=>uu.email===i.owner);
-      if(poster&&poster.cv&&poster.cv.visible){
-        cvCont.innerHTML=renderCvHtml(poster.cv);
+      // Try from cache first, else fetch async
+      const posterDoc = cachedUsers[i.owner];
+      if(posterDoc){
+        if(posterDoc.cv&&posterDoc.cv.visible){
+          cvCont.innerHTML=renderCvHtml(posterDoc.cv);
+        } else {
+          cvCont.innerHTML='<div style="color:#555;font-size:13px;font-style:italic">Bu kullanıcı CV\'sini gizlemiş.</div>';
+        }
       } else {
-        cvCont.innerHTML='<div style="color:#555;font-size:13px;font-style:italic">Bu kullanıcı CV\'sini gizlemiş.</div>';
+        cvCont.innerHTML='<div style="color:#555;font-size:13px">Yükleniyor...</div>';
+        getUserDoc(i.owner).then(doc=>{
+          if(doc&&doc.cv&&doc.cv.visible) cvCont.innerHTML=renderCvHtml(doc.cv);
+          else cvCont.innerHTML='<div style="color:#555;font-size:13px;font-style:italic">Bu kullanıcı CV\'sini gizlemiş.</div>';
+        });
       }
     } else cvSec.style.display='none';
   }
@@ -1466,13 +1592,13 @@ function openDetail(id){
         <button class="ic-btn-b" style="flex:2;padding:14px" onclick="closeDetail();navTo('s2')">🔒 Giriş Yap</button>`;
     } else if(isMine){
       btns.innerHTML=`<button class="ic-btn-i" style="flex:1;padding:14px" onclick="closeDetail()">Kapat</button>
-        <button class="ic-btn-i" style="flex:1;padding:14px;color:#ef4444" onclick="deleteIlan(${id});closeDetail()">🗑️ Sil</button>`;
+        <button class="ic-btn-i" style="flex:1;padding:14px;color:#ef4444" onclick="deleteIlan('${id}');closeDetail()">🗑️ Sil</button>`;
     } else if(conv){
       btns.innerHTML=`<button class="ic-btn-i" style="flex:1;padding:14px" onclick="closeDetail()">Kapat</button>
         <button class="ic-btn-msg" style="flex:2;padding:14px" onclick="closeDetail();openConvById('${conv.id}')">💬 Mesajlaşmaya Devam Et</button>`;
     } else {
       btns.innerHTML=`<button class="ic-btn-i" style="flex:1;padding:14px" onclick="closeDetail()">Kapat</button>
-        <button class="ic-btn-b" style="flex:2;padding:14px" onclick="closeDetail();startChat(${id})">BAŞVUR / MESAJ AT</button>`;
+        <button class="ic-btn-b" style="flex:2;padding:14px" onclick="closeDetail();startChat('${id}')">BAŞVUR / MESAJ AT</button>`;
     }
   }
   document.getElementById('detail-ov').classList.add('show');
@@ -1595,19 +1721,19 @@ function populateCityFilter(){
     sel.appendChild(opt);
   });
 }
-function submitIlan(tip){
+async function submitIlan(tip){
   if(!isLoggedIn()) return;
   const u=currentUser;
-  
+
   // Her rol için 1 aktif ilan sınırı kontrolü
   const targetRol = tip==='firma' ? document.getElementById('ni-pos')?.value : (document.getElementById('ni-pos-p')?.value || u.rol);
-  const activeAds = getIlans().filter(i => i.owner === u.email && !isExpired(i) && i.rol === targetRol);
-  if(activeAds.length > 0) {
+  const activeCount = cachedIlans.filter(i => i.owner === u.uid && i.rol === targetRol).length;
+  if(activeCount > 0) {
     showToast(`Bu rol (${rolLabel(targetRol)}) için zaten aktif bir ilanınız var.`);
     return;
   }
 
-  let ilan={id:++ilanCtr,tip,ts:Date.now(),owner:u.email,st:'normal'};
+  let ilan={tip, ts:Date.now(), owner:u.uid, ownerEmail:u.email, st:'normal', active:true};
   if(tip==='firma'){
     const from=document.getElementById('ni-from')?.value||'';
     const to=document.getElementById('ni-to')?.value||'';
@@ -1621,97 +1747,86 @@ function submitIlan(tip){
       ucret:document.getElementById('ni-price-f')?.value||'—',
       st:document.getElementById('ni-st-f')?.value||'normal'};
   } else {
-    ilan={...ilan,rol:(document.getElementById('ni-pos-p')?.value || u.rol),firm:'',from:'',to:'',tarih:'',saat:'',
+    ilan={...ilan,rol:(document.getElementById('ni-pos-p')?.value || u.rol),
+      firm:'',from:'',to:'',
       rota:document.getElementById('ni-rota')?.value||'Esnek',
       ucret:document.getElementById('ni-price-p')?.value||'—',
       note:document.getElementById('ni-note')?.value||'',
       tarih:document.getElementById('ni-date-p')?.value||'',
       st:document.getElementById('ni-st-p')?.value||'normal'};
   }
-  const ilans=getIlans();
-  ilans.unshift(ilan);
-  saveIlans(ilans);
-  closeNewIlan();
-  renderIlanlar();
-  updateUI();
-  showSuc('🎉','İlan Yayınlandı!','İlanınız 30 gün aktif kalacak.');
+  try {
+    await db.collection('ilans').add(ilan);
+    closeNewIlan();
+    showSuc('🎉','İlan Yayınlandı!','İlanınız tüm üyelere görünür oldu.');
+  } catch(e) { showToast('İlan eklenemedi: ' + e.message); }
 }
 // ══════════════════════════════════
 // CHAT / MESSAGING
 // ══════════════════════════════════
 let currentConvId=null;
-function canApplyForRole(rol){
-  if(!currentUser) return false;
-  const convs=getConvs();
-  const ilans=getIlans();
-  const myConvs=convs.filter(c=>c.applicant===currentUser.email);
-  return !myConvs.some(c=>{
-    const ilan=ilans.find(i=>i.id===c.ilanId);
-    return ilan&&ilan.rol===rol&&!isExpired(ilan);
-  });
-}
-function startChat(ilanId){
+async function startChat(ilanId){
   if(!isLoggedIn()){showToast('Mesaj atmak için giriş yapın');navTo('s2');return}
-  const ilan=getIlans().find(i=>i.id===ilanId);
+  const ilan=cachedIlans.find(i=>i.id===ilanId);
   if(!ilan){showToast('İlan bulunamadı');return}
-  if(ilan.owner===currentUser.email){showToast('Kendi ilanınıza başvuramazsınız');return}
+  if(ilan.owner===currentUser.uid){showToast('Kendi ilanınıza başvuramazsınız');return}
   // Role limit check (only for workers applying to firm listings)
   if(ilan.tip==='firma'&&isWorker(currentUser.rol)){
-    if(!canApplyForRole(ilan.rol)){
-      showToast('Bu rol için zaten başvurdunuz. Her rol için 1 başvuru yapabilirsiniz.');
-      return;
-    }
+    const already = cachedConvs.some(c=>{
+      const il = cachedIlans.find(i=>i.id===c.ilanId);
+      return il && il.rol === ilan.rol && c.applicant === currentUser.uid;
+    });
+    if(already){showToast('Bu rol için zaten başvurdunuz.');return;}
   }
-  // Find or create conv
-  let convs=getConvs();
-  let conv=convs.find(c=>c.ilanId===ilanId&&(c.applicant===currentUser.email||c.poster===currentUser.email));
+  // Find existing conv in cache
+  let conv=cachedConvs.find(c=>c.ilanId===ilanId&&(c.applicant===currentUser.uid||c.poster===currentUser.uid));
   if(!conv){
     const ilanTitle=ilan.tip==='firma'
       ?`${POS[ilan.rol]||ilan.rol} — ${ilan.firm}`
       :`${POS[ilan.rol]||ilan.rol} İş Arıyor`;
-    conv={
-      id:'conv_'+Date.now(),
-      ilanId,
-      ilanTitle,
-      ilanRol:ilan.rol,
-      applicant:currentUser.email,
-      poster:ilan.owner,
-      messages:[],lastTs:Date.now(),
-      applicantUnread:0,posterUnread:0
+    const newConv={
+      ilanId, ilanTitle, ilanRol:ilan.rol,
+      applicant:currentUser.uid, poster:ilan.owner,
+      participants:[currentUser.uid, ilan.owner],
+      lastTs:Date.now(), applicantUnread:0, posterUnread:0
     };
-    convs.push(conv);
-    saveConvs(convs);
+    const ref = await db.collection('convs').add(newConv);
+    conv = { id: ref.id, ...newConv };
   }
   openConvById(conv.id);
 }
 function openConvById(convId){
-  const convs=getConvs();
-  const conv=convs.find(c=>c.id===convId);
+  const conv=cachedConvs.find(c=>c.id===convId);
   if(!conv) return;
-  const ilan=getIlans().find(i=>i.id===conv.ilanId);
+  const ilan=cachedIlans.find(i=>i.id===conv.ilanId);
   currentConvId=convId;
   // Mark as read
-  const isApplicant=conv.applicant===currentUser?.email;
-  if(isApplicant) conv.applicantUnread=0;
-  else conv.posterUnread=0;
-  const idx=convs.findIndex(c=>c.id===convId);
-  if(idx>=0){convs[idx]=conv;saveConvs(convs);}
+  const isApplicant=conv.applicant===currentUser?.uid;
+  const updateField=isApplicant?'applicantUnread':'posterUnread';
+  db.collection('convs').doc(convId).update({[updateField]:0});
   // Update chat header
   document.getElementById('chat-ava').textContent=AVT[conv.ilanRol]||'🚌';
   document.getElementById('chat-title').textContent=conv.ilanTitle||'Sohbet';
   document.getElementById('chat-sub').textContent=ilan?`${ilan.tip==='firma'?ilan.firm:POS[ilan.rol]+' arıyor'} · ${daysLeft(ilan)} gün kaldı`:'İlan sona ermiş';
-  renderChatMsgs(conv);
+  // Real-time messages listener
+  if(msgListener) msgListener();
+  msgListener = db.collection('convs').doc(convId).collection('messages')
+    .orderBy('ts','asc')
+    .onSnapshot(snap=>{
+      const msgs=snap.docs.map(d=>d.data());
+      renderChatMsgsFromArray(msgs);
+    });
   navTo('s8');
 }
-function renderChatMsgs(conv){
+function renderChatMsgsFromArray(msgs){
   const el=document.getElementById('chat-msgs');
   if(!el) return;
-  if(!conv.messages.length){
+  if(!msgs.length){
     el.innerHTML='<div class="chat-empty"><div class="ce-ico">💬</div><div>Henüz mesaj yok.<br>İlk mesajı siz gönderin!</div></div>';
     return;
   }
-  el.innerHTML=conv.messages.map(m=>{
-    const isMine=m.from===currentUser?.email;
+  el.innerHTML=msgs.map(m=>{
+    const isMine=m.from===currentUser?.uid;
     return `<div class="msg-row ${isMine?'mine':'theirs'}">
       <div class="msg-bubble">${escHtml(m.text)}</div>
       <div class="msg-time">${fmtTime(m.ts)}</div>
@@ -1722,46 +1837,42 @@ function renderChatMsgs(conv){
 function scrollChatBottom(){
   setTimeout(()=>{const el=document.getElementById('chat-msgs');if(el)el.scrollTop=el.scrollHeight;},80);
 }
-function sendMsg(){
+async function sendMsg(){
   if(!isLoggedIn()||!currentConvId) return;
   const inp=document.getElementById('chat-inp');
   const text=inp?.value?.trim();
   if(!text) return;
   inp.value='';
-  const convs=getConvs();
-  const idx=convs.findIndex(c=>c.id===currentConvId);
-  if(idx<0) return;
-  const conv=convs[idx];
-  const msg={from:currentUser.email,text,ts:Date.now()};
-  conv.messages.push(msg);
-  conv.lastTs=msg.ts;
-  // Increment unread for other party
-  if(conv.applicant===currentUser.email) conv.posterUnread=(conv.posterUnread||0)+1;
-  else conv.applicantUnread=(conv.applicantUnread||0)+1;
-  convs[idx]=conv;
-  saveConvs(convs);
-  renderChatMsgs(conv);
+  const conv=cachedConvs.find(c=>c.id===currentConvId);
+  if(!conv) return;
+  const msg={from:currentUser.uid, text, ts:Date.now()};
+  const otherUnread=conv.applicant===currentUser.uid?'posterUnread':'applicantUnread';
+  await Promise.all([
+    db.collection('convs').doc(currentConvId).collection('messages').add(msg),
+    db.collection('convs').doc(currentConvId).update({
+      lastTs:msg.ts,
+      [otherUnread]:firebase.firestore.FieldValue.increment(1)
+    })
+  ]);
 }
 function escHtml(t){return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 // Profile messages
 function renderProfileMsgs(){
   const el=document.getElementById('msgs-list');
   if(!el||!currentUser) return;
-  const convs=getConvs();
-  const myConvs=convs.filter(c=>c.applicant===currentUser.email||c.poster===currentUser.email).sort((a,b)=>b.lastTs-a.lastTs);
+  const myConvs=cachedConvs.filter(c=>c.applicant===currentUser.uid||c.poster===currentUser.uid).sort((a,b)=>b.lastTs-a.lastTs);
   if(!myConvs.length){el.innerHTML='<div style="text-align:center;color:#444;padding:18px;font-size:13px">Henüz mesajınız yok</div>';return;}
   el.innerHTML=myConvs.map(c=>{
-    const last=c.messages[c.messages.length-1];
-    const isApplicant=c.applicant===currentUser.email;
+    const isApplicant=c.applicant===currentUser.uid;
     const unread=isApplicant?c.applicantUnread:c.posterUnread;
     return `<div class="conv-item" onclick="openConvById('${c.id}')">
       <div class="conv-ava">${AVT[c.ilanRol]||'🚌'}</div>
       <div class="conv-info">
         <div class="conv-title">${c.ilanTitle}</div>
-        <div class="conv-last">${last?(last.from===currentUser.email?'Sen: ':'')+last.text:'Yeni sohbet'}</div>
+        <div class="conv-last">Yeni sohbet</div>
       </div>
       <div class="conv-meta">
-        <div class="conv-time">${last?fmtDate(last.ts):''}</div>
+        <div class="conv-time">${fmtDate(c.lastTs)}</div>
         ${unread>0?`<div class="conv-unread">${unread}</div>`:''}
       </div>
     </div>`;
@@ -1771,7 +1882,7 @@ function renderProfileMsgs(){
 function renderMyIlans(){
   const section=document.getElementById('myilans-section');
   if(!section||!currentUser) return;
-  const myIlans=getIlans().filter(i=>i.owner===currentUser.email).sort((a,b)=>b.ts-a.ts);
+  const myIlans=cachedIlans.filter(i=>i.owner===currentUser.uid).sort((a,b)=>b.ts-a.ts);
   if(!myIlans.length){section.innerHTML='<div style="text-align:center;color:#444;padding:16px;font-size:13px">İlanınız yok</div>';return;}
   section.innerHTML=myIlans.map(i=>`
     <div style="background:rgba(255,255,255,.04);border-radius:10px;padding:12px;margin-bottom:8px;display:flex;align-items:center;gap:10px">
@@ -1780,7 +1891,7 @@ function renderMyIlans(){
         <div style="font-size:13px;font-weight:700">${i.tip==='firma'?POS[i.rol]+' Arıyor':POS[i.rol]+' İş Arıyor'}</div>
         <div style="font-size:11px;color:#555;margin-top:2px">${isExpired(i)?'⛔ Süresi doldu':'⏳ '+daysLeft(i)+' gün kaldı'}</div>
       </div>
-      <button onclick="deleteIlan(${i.id})" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);color:#ef4444;border-radius:8px;padding:6px 10px;font-size:11px;font-weight:700">Sil</button>
+      <button onclick="deleteIlan('${i.id}')" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);color:#ef4444;border-radius:8px;padding:6px 10px;font-size:11px;font-weight:700">Sil</button>
     </div>`).join('');
 }
 // ══════════════════════════════════
@@ -1805,20 +1916,19 @@ function renderCvHtml(cv){
   if(cv.edu) h+=`<div style="margin-bottom:10px"><div style="font-size:10px;color:#555;font-weight:700;letter-spacing:.5px;margin-bottom:3px">EĞİTİM</div><div style="font-size:12px;color:#ccc;line-height:1.5">${escHtml(cv.edu)}</div></div>`;
   if(cv.lic) h+=`<div style="margin-bottom:10px"><div style="font-size:10px;color:#555;font-weight:700;letter-spacing:.5px;margin-bottom:3px">BELGELER</div><div style="font-size:12px;color:#ccc;line-height:1.5">${escHtml(cv.lic)}</div></div>`;
   if(cv.contact) h+=`<div style="margin-bottom:10px"><div style="font-size:10px;color:#555;font-weight:700;letter-spacing:.5px;margin-bottom:3px">İLETİŞİM</div><div style="font-size:12px;color:#f59e0b;line-height:1.5">${escHtml(cv.contact)}</div></div>`;
-  if(cv.file) h+=`<div><div style="font-size:10px;color:#555;font-weight:700;letter-spacing:.5px;margin-bottom:3px">EKLENEN BELGE</div><div style="font-size:12px;"><a href="${cv.file.data}" download="${cv.file.name}" style="color:#f5a623;text-decoration:none;font-weight:600">📎 ${cv.file.name} (İndir)</a></div></div>`;
+  if(cv.fileUrl && cv.fileName) h+=`<div><div style="font-size:10px;color:#555;font-weight:700;letter-spacing:.5px;margin-bottom:3px">EKLENEN BELGE</div><div style="font-size:12px;"><a href="${cv.fileUrl}" target="_blank" style="color:#f5a623;text-decoration:none;font-weight:600">📎 ${escHtml(cv.fileName)} (İndir)</a></div></div>`;
   return h||'<div style="font-size:12px;color:#444;font-style:italic">CV boş</div>';
 }
-function toggleCvVisible(){
+async function toggleCvVisible(){
   if(!currentUser) return;
   const cv=currentUser.cv||{};
   cv.visible=!cv.visible;
   currentUser.cv=cv;
-  saveUser(currentUser);
-  const users=getUsers();
-  const idx=users.findIndex(u=>u.email===currentUser.email);
-  if(idx>=0){users[idx].cv=cv;saveUsers(users);}
-  renderCvDisplay();
-  showToast(cv.visible?'CV görünür yapıldı 👁️':'CV gizlendi 🔒');
+  try {
+    await db.collection('users').doc(currentUser.uid).update({cv});
+    renderCvDisplay();
+    showToast(cv.visible?'CV görünür yapıldı 👁️':'CV gizlendi 🔒');
+  } catch(e) { showToast('Güncelleme başarısız'); }
 }
 function openCvEdit(){
   if(!currentUser) return;
@@ -1831,12 +1941,19 @@ function openCvEdit(){
   document.getElementById('cv-ov').classList.add('show');
 }
 function closeCvEdit(){document.getElementById('cv-ov').classList.remove('show');}
-function saveCv(){
+async function saveCv(){
   if(!currentUser) return;
-  const fileInp = document.getElementById('cv-file');
-  let fileData = currentUser.cv?.file || null;
-  if(fileInp && fileInp.dataset.base64){
-    fileData = { name: fileInp.dataset.filename, data: fileInp.dataset.base64 };
+  const fileInp = document.getElementById('cv-file-inp');
+  let fileUrl = currentUser.cv?.fileUrl || null;
+  let fileName = currentUser.cv?.fileName || null;
+  if(fileInp?.files[0]){
+    const file = fileInp.files[0];
+    try {
+      const ref = storage.ref(`users/${currentUser.uid}/cv-${Date.now()}`);
+      const snap = await ref.put(file);
+      fileUrl = await snap.ref.getDownloadURL();
+      fileName = file.name;
+    } catch(e) { showToast('Dosya yüklenemedi'); }
   }
   const cv={
     about:document.getElementById('cv-about').value.trim(),
@@ -1845,16 +1962,16 @@ function saveCv(){
     lic:document.getElementById('cv-lic').value.trim(),
     contact:document.getElementById('cv-contact').value.trim(),
     visible:currentUser.cv?.visible||false,
-    file: fileData
+    fileUrl, fileName
   };
-  currentUser.cv=cv;
-  saveUser(currentUser);
-  const users=getUsers();
-  const idx=users.findIndex(u=>u.email===currentUser.email);
-  if(idx>=0){users[idx].cv=cv;saveUsers(users);}
-  closeCvEdit();
-  renderCvDisplay();
-  showToast('CV kaydedildi ✅');
+  try {
+    await db.collection('users').doc(currentUser.uid).update({cv});
+    currentUser.cv=cv;
+    cachedUsers[currentUser.uid] = {...(cachedUsers[currentUser.uid]||{}), cv};
+    closeCvEdit();
+    renderCvDisplay();
+    showToast('CV kaydedildi ✅');
+  } catch(e) { showToast('CV kaydedilemedi: ' + e.message); }
 }
 // ══════════════════════════════════
 // SUCCESS & TOAST
@@ -2059,16 +2176,7 @@ function toggleNav(){
 // INIT
 // ══════════════════════════════════
 function demoMode() {
-  const users = getUsers();
-  const kaptan = users.find(u => u.rol === 'kaptan');
-  if (kaptan) {
-    saveUser(kaptan);
-    updateUI();
-    navTo('s3');
-    showToast('Demo moduna girildi (Kaptan)');
-  } else {
-    showToast('Demo kullanıcısı bulunamadı, test verilerini yükleyin.');
-  }
+  showToast('Demo modu Firebase ile kullanılamaz. Lütfen giriş yapın.');
 }
 function openTerms(){
   const o=document.getElementById('terms-ov');const p=document.getElementById('terms-panel');
@@ -2106,10 +2214,7 @@ function sendHelp() {
   showSuc('📩', 'Mesajınız Hazırlandı', 'E-posta uygulamanız açılıyor...');
 }
 window.addEventListener('resize',()=>{if(mapReady){lmap.invalidateSize();}});
-seedData();
-loadUser();
-updateUI();
-renderIlanlar();
+// auth.onAuthStateChanged zaten yukarıda tanımlı — tüm init oradan başlar
 populateCityFilter();
 </script>
 </body>
