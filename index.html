@@ -7,6 +7,13 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0a0a0a">
 <title>SEYRÜSEFER</title>
+<meta name="description" content="Otobüs sektörü profesyonelleri için iş ilanları ve navigasyon platformu.">
+<meta name="keywords" content="otobüs, şoför, muavin, hostes, iş ilanı, sektörel ağ, seyrüsefer">
+<meta property="og:title" content="SEYRÜSEFER">
+<meta property="og:description" content="Otobüs sektörü profesyonelleri için iş ilanları ve navigasyon.">
+<meta property="og:type" content="website">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -721,8 +728,8 @@ textarea.inp{resize:none;min-height:80px;line-height:1.5;}
       <div class="settings-title">HAKKINDA</div>
       <div class="setting-item">
         <div class="setting-row"><div class="sr-left"><span class="sr-ico">ℹ️</span> Sürüm</div><div class="sr-right">v5.1.0</div></div>
-        <div class="setting-row" onclick="showToast('Şartlar yakında')"><div class="sr-left"><span class="sr-ico">📄</span> Kullanım Şartları</div><div class="sr-right">›</div></div>
-        <div class="setting-row" onclick="showToast('Gizlilik yakında')"><div class="sr-left"><span class="sr-ico">🔒</span> Gizlilik Politikası</div><div class="sr-right">›</div></div>
+        <div class="setting-row" onclick="openTerms()"><div class="sr-left"><span class="sr-ico">📄</span> Kullanım Şartları</div><div class="sr-right">›</div></div>
+        <div class="setting-row" onclick="openPrivacy()"><div class="sr-left"><span class="sr-ico">🔒</span> Gizlilik Politikası</div><div class="sr-right">›</div></div>
       </div>
     </div>
     <div class="settings-section">
@@ -880,6 +887,40 @@ textarea.inp{resize:none;min-height:80px;line-height:1.5;}
     <button onclick="closeHelp()" style="width:100%;padding:12px;border-radius:14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);color:#777;font-size:13px;font-weight:600;cursor:pointer">Kapat</button>
   </div>
 </div>
+<!-- ════ KULLANIM ŞARTLARI OVERLAY ════ -->
+<div id="terms-ov" onclick="if(event.target===this)closeTerms()" style="position:absolute;inset:0;z-index:850;background:rgba(0,0,0,.8);backdrop-filter:blur(4px);display:flex;align-items:flex-end;opacity:0;pointer-events:none;transition:opacity .25s;">
+  <div id="terms-panel" style="width:100%;background:#111;border-radius:22px 22px 0 0;border-top:1px solid rgba(255,255,255,.08);max-height:85vh;overflow-y:auto;transform:translateY(40px);transition:transform .3s cubic-bezier(.4,0,.2,1);padding:20px 20px max(40px,env(safe-area-inset-bottom));">
+    <div style="width:36px;height:4px;background:rgba(255,255,255,.15);border-radius:2px;margin:0 auto 18px"></div>
+    <div style="font-size:17px;font-weight:800;margin-bottom:16px">📄 Kullanım Şartları</div>
+    <div style="font-size:12px;color:#888;line-height:1.8">
+      <p style="margin-bottom:12px"><strong style="color:#ccc">1. Kabul</strong><br>Seyrüsefer uygulamasını kullanarak bu şartları kabul etmiş sayılırsınız.</p>
+      <p style="margin-bottom:12px"><strong style="color:#ccc">2. Hizmetin Amacı</strong><br>Seyrüsefer, otobüs sektöründe çalışan profesyoneller ile işverenler arasında iletişim sağlayan bir platformdur. Uygulama, iş ilanı yayınlama ve iş arama hizmetleri sunar.</p>
+      <p style="margin-bottom:12px"><strong style="color:#ccc">3. Üyelik</strong><br>Üyelik için geçerli bir e-posta adresi ve 6 haneli şifre gereklidir. Gerçek dışı bilgi girilmesi hesabın silinmesine neden olabilir.</p>
+      <p style="margin-bottom:12px"><strong style="color:#ccc">4. İlan Kuralları</strong><br>Yanıltıcı, hakaret içeren veya sektörle ilgisiz ilanlar yayınlamak yasaktır. Her kullanıcı her rol için en fazla 1 aktif ilan verebilir. İlanlar 30 gün sonra otomatik olarak sona erer.</p>
+      <p style="margin-bottom:12px"><strong style="color:#ccc">5. Sorumluluk Reddi</strong><br>Seyrüsefer, kullanıcılar arasındaki iş anlaşmalarından sorumlu tutulamaz. İlan içerikleri kullanıcılar tarafından oluşturulur.</p>
+      <p style="margin-bottom:12px"><strong style="color:#ccc">6. Değişiklikler</strong><br>Bu şartlar önceden bildirim yapılmaksızın güncellenebilir.</p>
+      <p style="color:#555">Son güncelleme: Mayıs 2026</p>
+    </div>
+    <button onclick="closeTerms()" style="width:100%;padding:14px;border-radius:14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);color:#777;font-size:13px;font-weight:600;cursor:pointer;margin-top:16px">Kapat</button>
+  </div>
+</div>
+<!-- ════ GİZLİLİK POLİTİKASI OVERLAY ════ -->
+<div id="privacy-ov" onclick="if(event.target===this)closePrivacy()" style="position:absolute;inset:0;z-index:850;background:rgba(0,0,0,.8);backdrop-filter:blur(4px);display:flex;align-items:flex-end;opacity:0;pointer-events:none;transition:opacity .25s;">
+  <div id="privacy-panel" style="width:100%;background:#111;border-radius:22px 22px 0 0;border-top:1px solid rgba(255,255,255,.08);max-height:85vh;overflow-y:auto;transform:translateY(40px);transition:transform .3s cubic-bezier(.4,0,.2,1);padding:20px 20px max(40px,env(safe-area-inset-bottom));">
+    <div style="width:36px;height:4px;background:rgba(255,255,255,.15);border-radius:2px;margin:0 auto 18px"></div>
+    <div style="font-size:17px;font-weight:800;margin-bottom:16px">🔒 Gizlilik Politikası</div>
+    <div style="font-size:12px;color:#888;line-height:1.8">
+      <p style="margin-bottom:12px"><strong style="color:#ccc">1. Toplanan Veriler</strong><br>Ad soyad, e-posta adresi, rol bilgisi ve isteğe bağlı olarak profil fotoğrafı ve CV bilgileri toplanır.</p>
+      <p style="margin-bottom:12px"><strong style="color:#ccc">2. Verilerin Kullanımı</strong><br>Toplanan veriler yalnızca platform hizmetlerini sunmak amacıyla kullanılır. Üçüncü taraflarla paylaşılmaz.</p>
+      <p style="margin-bottom:12px"><strong style="color:#ccc">3. CV Görünürlüğü</strong><br>CV bilgilerinizi diğer üyelere gösterip göstermemek tamamen sizin kontrolünüzdedir. Profil ayarlarından istediğiniz zaman değiştirebilirsiniz.</p>
+      <p style="margin-bottom:12px"><strong style="color:#ccc">4. Veri Güvenliği</strong><br>Verileriniz güvenli sunucularda saklanır. Hesabınızı sildiğinizde tüm kişisel verileriniz silinir.</p>
+      <p style="margin-bottom:12px"><strong style="color:#ccc">5. Konum Verisi</strong><br>Navigasyon özelliği için konum izni talep edilebilir. Bu veri cihazınızda işlenir, sunucularımıza gönderilmez.</p>
+      <p style="margin-bottom:12px"><strong style="color:#ccc">6. İletişim</strong><br>Gizlilik ile ilgili sorularınız için: destek@seyrusefer.com</p>
+      <p style="color:#555">Son güncelleme: Mayıs 2026</p>
+    </div>
+    <button onclick="closePrivacy()" style="width:100%;padding:14px;border-radius:14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);color:#777;font-size:13px;font-weight:600;cursor:pointer;margin-top:16px">Kapat</button>
+  </div>
+</div>
 <!-- ════ SUCCESS OVERLAY ════ -->
 <div id="suc-ov">
   <div class="suc-icon" id="suc-icon">✅</div>
@@ -964,10 +1005,7 @@ function doLogin(){
   const users=getUsers();
   const found=users.find(u=>u.email===email&&u.pass===pass);
   if(found){saveUser(found, remember);updateUI();navTo('s3');showToast('Hoş geldiniz! 🎉')}
-  else if(email&&pass.length>=3){
-    const demo={name:email.split('@')[0],email,rol:'kaptan',cv:{about:'',exp:'',edu:'',lic:'',contact:'',visible:false}};
-    saveUser(demo, remember);updateUI();navTo('s3');showToast('Demo giriş 🎉');
-  } else showToast('E-posta veya şifre hatalı');
+  else showToast('E-posta veya şifre hatalı');
 }
 function doRegister(){
   const name=document.getElementById('r-name').value.trim();
@@ -1091,11 +1129,6 @@ function updateUI(){
       if(c.poster===u.email) unread+=c.posterUnread||0;
       if(c.applicant===u.email) unread+=c.applicantUnread||0;
     });
-    // Her mesaj demo amaçlı 1 okunmamış gibi gösterilsin eğer boşsa (test verilerinde okunmamış değişkeni olmadığı için)
-    // Sadece test kolaylığı
-    if (unread === 0 && convs.length > 0) {
-      unread = convs.length; // test amaçlı
-    }
     const mb=document.getElementById('msgs-badge');
     if(mb){mb.style.display=unread>0?'inline-block':'none';mb.textContent=unread;}
     const nd=document.getElementById('main-notif-dot');
@@ -1301,7 +1334,7 @@ function renderIlanlar(){
   const list=getIlans().filter(i=>!isExpired(i));
   let filtered=list.filter(i=>{
     const rOk=!filterRol||i.rol===filterRol||(filterRol==='hostes'&&i.rol==='host');
-    const sOk=!filterSehir||(i.from||'').toLowerCase().includes(filterSehir)||(i.to||'').toLowerCase().includes(filterSehir);
+    const sOk=!filterSehir||(i.from||'').toLocaleLowerCase('tr-TR').includes(filterSehir.toLocaleLowerCase('tr-TR'))||(i.to||'').toLocaleLowerCase('tr-TR').includes(filterSehir.toLocaleLowerCase('tr-TR'));
     const tOk=!filterTip||i.tip===filterTip;
     let qOk=true;
     const searchInp=document.getElementById('s4-search-inp');
@@ -1557,7 +1590,7 @@ function populateCityFilter(){
   if(!sel || typeof TR_CITIES==='undefined') return;
   TR_CITIES.forEach(c=>{
     const opt=document.createElement('option');
-    opt.value=c.c.toLowerCase();
+    opt.value=c.c.toLocaleLowerCase('tr-TR');
     opt.textContent=c.c;
     sel.appendChild(opt);
   });
@@ -2037,6 +2070,22 @@ function demoMode() {
     showToast('Demo kullanıcısı bulunamadı, test verilerini yükleyin.');
   }
 }
+function openTerms(){
+  const o=document.getElementById('terms-ov');const p=document.getElementById('terms-panel');
+  if(o&&p){o.style.opacity='1';o.style.pointerEvents='auto';p.style.transform='translateY(0)';}
+}
+function closeTerms(){
+  const o=document.getElementById('terms-ov');const p=document.getElementById('terms-panel');
+  if(o&&p){o.style.opacity='0';o.style.pointerEvents='none';p.style.transform='translateY(40px)';}
+}
+function openPrivacy(){
+  const o=document.getElementById('privacy-ov');const p=document.getElementById('privacy-panel');
+  if(o&&p){o.style.opacity='1';o.style.pointerEvents='auto';p.style.transform='translateY(0)';}
+}
+function closePrivacy(){
+  const o=document.getElementById('privacy-ov');const p=document.getElementById('privacy-panel');
+  if(o&&p){o.style.opacity='0';o.style.pointerEvents='none';p.style.transform='translateY(40px)';}
+}
 function openHelp() {
   const h = document.getElementById('help-ov');
   if(h){ h.style.pointerEvents='auto'; h.style.opacity='1'; document.getElementById('help-panel').style.transform='translateY(0)'; }
@@ -2050,8 +2099,11 @@ function closeHelp() {
 function sendHelp() {
   const msg = document.getElementById('help-msg')?.value.trim();
   if(!msg) { showToast('Lütfen bir mesaj yazın'); return; }
+  const subject = encodeURIComponent('Seyrüsefer Destek Talebi');
+  const body = encodeURIComponent(msg);
+  window.location.href = `mailto:destek@seyrusefer.com?subject=${subject}&body=${body}`;
   closeHelp();
-  showSuc('📩', 'Mesajınız Alındı', 'En kısa sürede size dönüş yapacağız.');
+  showSuc('📩', 'Mesajınız Hazırlandı', 'E-posta uygulamanız açılıyor...');
 }
 window.addEventListener('resize',()=>{if(mapReady){lmap.invalidateSize();}});
 seedData();
