@@ -22,7 +22,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{width:100%;height:100%;overflow:hidden;font-family:'Inter',system-ui,sans-serif;background:#0a0a0a;color:#fff;-webkit-font-smoothing:antialiased;user-select:none;}
@@ -950,7 +949,6 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
-const storage = firebase.storage();
 
 // ══════════════════════════════════
 // IN-MEMORY CACHE
@@ -1114,14 +1112,11 @@ async function doRegister(){
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
     await db.collection('users').doc(uid).set(userData);
-    // Upload avatar if selected
-    if (tempAvatarFile) {
+    // Save avatar as base64 in Firestore
+    if (tempAvatarBase64) {
       try {
-        const ref = storage.ref(`users/${uid}/avatar`);
-        await ref.put(tempAvatarFile);
-        const url = await ref.getDownloadURL();
-        await db.collection('users').doc(uid).update({ avatarUrl: url });
-      } catch(avatarErr) { console.error('Avatar upload failed', avatarErr); }
+        await db.collection('users').doc(uid).update({ avatarUrl: tempAvatarBase64 });
+      } catch(avatarErr) { console.error('Avatar save failed', avatarErr); }
     }
     navTo('s3');
     showSuc('🎉', 'Hoş Geldiniz!', 'Kaydınız başarıyla tamamlandı.');
@@ -1407,7 +1402,6 @@ function togglePass(id,btn){
   btn.textContent=show?'🙈':'👁';
 }
 let tempAvatarBase64 = null;
-let tempAvatarFile = null;
 function onAvatarSelect(input, previewId, autoSave=false){
   const f=input.files[0];
   if(!f) return;
@@ -1424,18 +1418,14 @@ function onAvatarSelect(input, previewId, autoSave=false){
     }
     if(autoSave && currentUser){
       try {
-        const ref = storage.ref(`users/${currentUser.uid}/avatar`);
-        await ref.put(f);
-        const url = await ref.getDownloadURL();
-        await db.collection('users').doc(currentUser.uid).update({avatarUrl: url});
-        currentUser.avatarUrl = url;
-        cachedUsers[currentUser.uid] = {...(cachedUsers[currentUser.uid]||{}), avatarUrl: url};
+        await db.collection('users').doc(currentUser.uid).update({avatarUrl: base64});
+        currentUser.avatarUrl = base64;
+        cachedUsers[currentUser.uid] = {...(cachedUsers[currentUser.uid]||{}), avatarUrl: base64};
         updateUI();
         showToast('Profil fotoğrafı güncellendi');
-      } catch(err) { showToast('Fotoğraf yüklenemedi'); }
+      } catch(err) { showToast('Fotoğraf kaydedilemedi'); }
     } else {
       tempAvatarBase64 = base64;
-      tempAvatarFile = f;
     }
   };
   reader.readAsDataURL(f);
@@ -1444,9 +1434,12 @@ function onCvFileSelect(input){
   const f=input.files[0];
   const nm=document.getElementById('cv-file-name');
   if(f&&nm){
-    if(f.size>5*1024*1024){showToast('Dosya 5MB\'dan küçük olmalı');input.value='';return;}
+    if(f.size>1*1024*1024){showToast("CV dosyası 1MB'dan küçük olmalı");input.value='';return;}
     nm.style.display='block';
     nm.textContent='📄 '+f.name;
+    const reader=new FileReader();
+    reader.onload=function(e){input.dataset.base64=e.target.result;input.dataset.filename=f.name;};
+    reader.readAsDataURL(f);
   }
 }
 // ══════════════════════════════════
@@ -1946,14 +1939,9 @@ async function saveCv(){
   const fileInp = document.getElementById('cv-file-inp');
   let fileUrl = currentUser.cv?.fileUrl || null;
   let fileName = currentUser.cv?.fileName || null;
-  if(fileInp?.files[0]){
-    const file = fileInp.files[0];
-    try {
-      const ref = storage.ref(`users/${currentUser.uid}/cv-${Date.now()}`);
-      const snap = await ref.put(file);
-      fileUrl = await snap.ref.getDownloadURL();
-      fileName = file.name;
-    } catch(e) { showToast('Dosya yüklenemedi'); }
+  if(fileInp?.dataset.base64){
+    fileUrl = fileInp.dataset.base64;
+    fileName = fileInp.dataset.filename || 'belge';
   }
   const cv={
     about:document.getElementById('cv-about').value.trim(),
