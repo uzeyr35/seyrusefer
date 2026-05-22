@@ -63,7 +63,7 @@ button,input,select,textarea{font-family:inherit;border:none;outline:none;-webki
 .s1-slogan{font-size:clamp(24px,7vw,30px);font-weight:900;color:rgba(255,255,255,.72);line-height:1.18;text-shadow:0 2px 18px rgba(0,0,0,.95);margin-top:60px;letter-spacing:.3px;padding:0 20px;}
 .s1-bottom-area{position:relative;z-index:2;margin-top:auto;padding:0 28px 18px;text-align:center;}
 .s1-sub{font-size:13px;color:rgba(255,255,255,.75);line-height:1.5;text-shadow:0 1px 8px rgba(0,0,0,.6);}
-.s1-page-bottom{flex-shrink:0;background:rgba(15,22,35,1);padding:8px 28px max(28px,env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:10px;align-items:center;}
+.s1-page-bottom{flex-shrink:0;background:rgba(15,22,35,1);padding:8px 28px max(68px,env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:10px;align-items:center;}
 .dot{width:8px;height:8px;border-radius:5px;background:rgba(255,255,255,.2);transition:all .35s;}
 .dot.on{width:24px;background:#f5a623;}
 .s1-btn-row{display:flex;gap:10px;width:100%;}
@@ -125,9 +125,8 @@ textarea.inp{resize:none;min-height:80px;line-height:1.5;}
 .stat-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:14px 10px;text-align:center;}
 .stat-card .num{font-size:22px;font-weight:800;color:#f59e0b}.stat-card .lbl{font-size:10px;color:#666;margin-top:2px}
 .s3-sec-title{font-size:11px;font-weight:700;color:#666;letter-spacing:1px;margin-bottom:10px}
-.s3-quick{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;scrollbar-width:none}
-.s3-quick::-webkit-scrollbar{display:none}
-.quick-card{flex-shrink:0;width:130px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:14px;cursor:pointer;transition:transform .15s;}
+.s3-quick{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding-bottom:6px;}
+.quick-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:16px;cursor:pointer;transition:transform .15s;}
 .quick-card:active{transform:scale(.96)}
 .quick-card .qc-ico{font-size:24px;margin-bottom:8px}
 .quick-card .qc-title{font-size:12px;font-weight:600}
@@ -401,7 +400,7 @@ textarea.inp{resize:none;min-height:80px;line-height:1.5;}
 <div class="scr" id="s1b">
   <div class="s1b-topbar">
     <span class="s1b-logo" onclick="navTo('s1')">SEYRÜSEFER</span>
-    <div class="s1b-menu-btn" onclick="openNavMenu()">⊞</div>
+    <div class="s1b-menu-btn" onclick="openNavMenu()"><svg width="18" height="14" viewBox="0 0 18 14" fill="none"><rect width="18" height="2" rx="1" fill="currentColor"/><rect y="6" width="14" height="2" rx="1" fill="currentColor"/><rect y="12" width="10" height="2" rx="1" fill="currentColor"/></svg></div>
   </div>
   <div class="s1b-cards">
     <!-- İş İlanları Kartı -->
@@ -447,7 +446,7 @@ textarea.inp{resize:none;min-height:80px;line-height:1.5;}
   <div class="top-bar">
     <div class="back-btn" onclick="goBack()">‹</div>
     <span class="top-bar-logo" onclick="navTo('s1')">SEYRÜSEFER</span>
-    <div class="top-bar-btn" onclick="openNavMenu()">⊞</div>
+    <div class="top-bar-btn" onclick="openNavMenu()"><svg width="18" height="14" viewBox="0 0 18 14" fill="none"><rect width="18" height="2" rx="1" fill="currentColor"/><rect y="6" width="14" height="2" rx="1" fill="currentColor"/><rect y="12" width="10" height="2" rx="1" fill="currentColor"/></svg></div>
   </div>
   <div class="auth-wrap">
     <div class="auth-hero">
@@ -519,7 +518,7 @@ textarea.inp{resize:none;min-height:80px;line-height:1.5;}
     <span class="top-bar-logo" onclick="navTo('s1')">SEYRÜSEFER</span>
     <div class="top-bar-right">
       <div class="top-bar-btn" style="position:relative" onclick="navTo('s6');showToast('Mesajlar sekmesine bakın')">🔔<div class="notif-dot" id="main-notif-dot"></div></div>
-      <div class="top-bar-btn" onclick="openNavMenu()">⊞</div>
+      <div class="top-bar-btn" onclick="openNavMenu()"><svg width="18" height="14" viewBox="0 0 18 14" fill="none"><rect width="18" height="2" rx="1" fill="currentColor"/><rect y="6" width="14" height="2" rx="1" fill="currentColor"/><rect y="12" width="10" height="2" rx="1" fill="currentColor"/></svg></div>
     </div>
   </div>
   <div class="s3-body">
@@ -534,9 +533,9 @@ textarea.inp{resize:none;min-height:80px;line-height:1.5;}
     <div class="s3-sec-title">HIZLI ERİŞİM</div>
     <div class="s3-quick">
       <div class="quick-card" onclick="openNewIlan()" style="border-color:rgba(245,158,11,0.3);background:rgba(245,158,11,0.05);"><div class="qc-ico">✍️</div><div class="qc-title" style="color:#f5a623">İlan Ver</div><div class="qc-cnt">Yeni ilan oluştur</div></div>
+      <div class="quick-card" onclick="navTo('s6')"><div class="qc-ico">👤</div><div class="qc-title">Profilim</div><div class="qc-cnt">Görüntüle</div></div>
       <div class="quick-card" onclick="navTo('s4')"><div class="qc-ico">📋</div><div class="qc-title">İş İlanları</div><div class="qc-cnt" id="s3-ilan-cnt">—</div></div>
       <div class="quick-card" onclick="navTo('s5')"><div class="qc-ico">🗺️</div><div class="qc-title">Navigasyon</div><div class="qc-cnt">Güzergah planla</div></div>
-      <div class="quick-card" onclick="navTo('s6')"><div class="qc-ico">👤</div><div class="qc-title">Profilim</div><div class="qc-cnt">Görüntüle</div></div>
     </div>
     <div id="s3-guest-notice" style="display:none">
       <div class="s3-notice" style="margin-top:14px;cursor:pointer" onclick="navTo('s2')">💡 Giriş yaparak ilan verin ve başvurun <span style="margin-left:auto;background:rgba(245,158,11,.2);border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;color:#f5a623;white-space:nowrap">Giriş ›</span></div>
@@ -556,7 +555,7 @@ textarea.inp{resize:none;min-height:80px;line-height:1.5;}
     <span class="top-bar-logo" onclick="navTo('s1')">SEYRÜSEFER</span>
     <div class="top-bar-right">
       <div class="top-bar-btn" onclick="toggleSearch()" id="btn-search-toggle">🔍</div>
-      <div class="top-bar-btn" onclick="openNavMenu()">⊞</div>
+      <div class="top-bar-btn" onclick="openNavMenu()"><svg width="18" height="14" viewBox="0 0 18 14" fill="none"><rect width="18" height="2" rx="1" fill="currentColor"/><rect y="6" width="14" height="2" rx="1" fill="currentColor"/><rect y="12" width="10" height="2" rx="1" fill="currentColor"/></svg></div>
     </div>
   </div>
   <div id="s4-search-bar" style="display:none; padding:12px 16px; background:#0a0a0a; border-bottom:1px solid rgba(255,255,255,0.05);">
@@ -605,7 +604,7 @@ textarea.inp{resize:none;min-height:80px;line-height:1.5;}
   <div class="top-bar">
     <div class="back-btn" onclick="goBack()">‹</div>
     <span class="top-bar-logo" onclick="navTo('s1')">SEYRÜSEFER</span>
-    <div class="top-bar-btn" onclick="openNavMenu()">⊞</div>
+    <div class="top-bar-btn" onclick="openNavMenu()"><svg width="18" height="14" viewBox="0 0 18 14" fill="none"><rect width="18" height="2" rx="1" fill="currentColor"/><rect y="6" width="14" height="2" rx="1" fill="currentColor"/><rect y="12" width="10" height="2" rx="1" fill="currentColor"/></svg></div>
   </div>
   <div id="map"></div>
   <div id="next-stop">📍 <span id="next-stop-txt"></span></div>
@@ -639,7 +638,7 @@ textarea.inp{resize:none;min-height:80px;line-height:1.5;}
   <div class="top-bar">
     <div class="back-btn" onclick="goBack()">‹</div>
     <span class="top-bar-logo" onclick="navTo('s1')">SEYRÜSEFER</span>
-    <div class="top-bar-btn" onclick="openNavMenu()">⊞</div>
+    <div class="top-bar-btn" onclick="openNavMenu()"><svg width="18" height="14" viewBox="0 0 18 14" fill="none"><rect width="18" height="2" rx="1" fill="currentColor"/><rect y="6" width="14" height="2" rx="1" fill="currentColor"/><rect y="12" width="10" height="2" rx="1" fill="currentColor"/></svg></div>
   </div>
   <div class="s6-body">
     <div class="profile-hero">
@@ -708,7 +707,7 @@ textarea.inp{resize:none;min-height:80px;line-height:1.5;}
   <div class="top-bar">
     <div class="back-btn" onclick="goBack()">‹</div>
     <span class="top-bar-logo" onclick="navTo('s1')">SEYRÜSEFER</span>
-    <div class="top-bar-btn" onclick="openNavMenu()">⊞</div>
+    <div class="top-bar-btn" onclick="openNavMenu()"><svg width="18" height="14" viewBox="0 0 18 14" fill="none"><rect width="18" height="2" rx="1" fill="currentColor"/><rect y="6" width="14" height="2" rx="1" fill="currentColor"/><rect y="12" width="10" height="2" rx="1" fill="currentColor"/></svg></div>
   </div>
   <div class="s7-body">
     <div class="settings-section">
@@ -755,7 +754,7 @@ textarea.inp{resize:none;min-height:80px;line-height:1.5;}
   <div class="top-bar">
     <div class="back-btn" onclick="goBack()">‹</div>
     <span class="top-bar-logo" onclick="navTo('s1')">SEYRÜSEFER</span>
-    <div class="top-bar-btn" onclick="openNavMenu()">⊞</div>
+    <div class="top-bar-btn" onclick="openNavMenu()"><svg width="18" height="14" viewBox="0 0 18 14" fill="none"><rect width="18" height="2" rx="1" fill="currentColor"/><rect y="6" width="14" height="2" rx="1" fill="currentColor"/><rect y="12" width="10" height="2" rx="1" fill="currentColor"/></svg></div>
   </div>
   <div class="chat-body">
     <div class="chat-ilan-bar">
@@ -1202,7 +1201,7 @@ function updateUI(){
   const myConvs=u?cachedConvs.filter(c=>c.applicant===u.uid||c.poster===u.uid):[];
   const s1=document.getElementById('p-stat1');if(s1)s1.textContent=myIlans.length;
   const s2=document.getElementById('p-stat2');if(s2)s2.textContent=myConvs.length;
-  const s3=document.getElementById('p-stat3');if(s3)s3.textContent=u?'4.8⭐':'—';
+  const s3=document.getElementById('p-stat3');if(s3)s3.textContent=u?'Aktif':'—';
   // Logout/login
   const lo=document.getElementById('p-logout-btn');if(lo)lo.style.display=u?'block':'none';
   const li=document.getElementById('p-login-btn');if(li)li.style.display=u?'none':'block';
@@ -1487,12 +1486,11 @@ function renderIlanlar(){
     } else {
       btnHtml=`<button class="ic-btn-i" onclick="openDetail('${i.id}')">İncele</button><button class="ic-btn-b" onclick="startChat('${i.id}')">BAŞVUR</button>`;
     }
-    const fakeRating = `<span style="font-size:11px;color:#f5a623;background:rgba(245,166,35,0.15);padding:2px 5px;border-radius:4px;margin-left:6px;vertical-align:middle">4.8⭐</span>`;
     const ownerDoc = cachedUsers[i.owner];
     const tipBadge = i.tip==='firma' ? (ownerDoc?.rol==='arac'?'Araç Sahibi':'Firma') : 'Personel';
     const titleLine=isFirmaListing
-      ? `<div class="ic-name">${POS[i.rol]||i.rol} Aranıyor${fakeRating}</div>${u?`<div class="ic-firm">${i.firm||'—'}</div>`:''}`
-      : `<div class="ic-name">${POS[i.rol]||i.rol} — İş Arıyor${fakeRating}</div>${u?`<div class="ic-firm">${i.rota||'Esnek güzergah'}</div>`:''}`;
+      ? `<div class="ic-name">${POS[i.rol]||i.rol} Aranıyor</div>${u?`<div class="ic-firm">${i.firm||'—'}</div>`:''}`
+      : `<div class="ic-name">${POS[i.rol]||i.rol} — İş Arıyor</div>${u?`<div class="ic-firm">${i.rota||'Esnek güzergah'}</div>`:''}`;
     const routeInfo=isFirmaListing
       ? `<span class="ic-lbl">Güzergah:</span><span class="ic-val"><span class="ic-route">${i.from} → ${i.to}</span></span>`
       : `<span class="ic-lbl">Güzergah:</span><span class="ic-val">${i.rota||'Belirtilmemiş'}</span>`;
