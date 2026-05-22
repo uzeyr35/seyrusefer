@@ -995,11 +995,12 @@ function showBtnLoading(btnId, loading) {
 function startIlanListener() {
   if (ilanListener) ilanListener();
   ilanListener = db.collection('ilans')
-    .where('active', '==', true)
     .orderBy('ts', 'desc')
-    .limit(100)
+    .limit(200)
     .onSnapshot(snap => {
-      cachedIlans = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+      cachedIlans = snap.docs
+        .map(d => ({ ...d.data(), id: d.id }))
+        .filter(i => i.active !== false);
       renderIlanlar();
       updateUI();
     }, err => console.error('ilan listener', err));
@@ -1010,9 +1011,10 @@ function startListeners(uid) {
   if (convListener) convListener();
   convListener = db.collection('convs')
     .where('participants', 'array-contains', uid)
-    .orderBy('lastTs', 'desc')
     .onSnapshot(snap => {
-      cachedConvs = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+      cachedConvs = snap.docs
+        .map(d => ({ ...d.data(), id: d.id }))
+        .sort((a, b) => (b.lastTs || 0) - (a.lastTs || 0));
       renderProfileMsgs();
       updateUI();
     }, err => console.error('conv listener', err));
