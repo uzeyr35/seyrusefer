@@ -287,10 +287,10 @@ textarea.inp{resize:none;min-height:80px;line-height:1.5;}
 .chat-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;color:#444;font-size:13px;gap:10px;}
 .chat-empty .ce-ico{font-size:40px}
 /* ── BOTTOM TABS ── */
-.bottom-tabs{flex-shrink:0;display:flex;background:#0f0f0f;border-top:1px solid rgba(255,255,255,.06);padding:8px 0 max(8px,env(safe-area-inset-bottom));}
-.tab-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:4px 0;cursor:pointer;transition:color .15s;color:#444;position:relative;}
+.bottom-tabs{flex-shrink:0;display:flex;background:#0f0f0f;border-top:1px solid rgba(255,255,255,.06);padding:10px 0 max(10px,env(safe-area-inset-bottom));}
+.tab-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:4px 0;cursor:pointer;transition:color .15s;color:#444;position:relative;}
 .tab-item.active{color:#f59e0b}
-.tab-item .t-ico{font-size:20px}.tab-item .t-lbl{font-size:10px;font-weight:600}
+.tab-item .t-ico{font-size:24px}.tab-item .t-lbl{font-size:11px;font-weight:600}
 .tab-badge{position:absolute;top:2px;right:14px;background:#f59e0b;color:#000;border-radius:8px;padding:1px 5px;font-size:9px;font-weight:700;}
 /* ── OVERLAYS ── */
 .ov{position:absolute;inset:0;z-index:800;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);display:flex;align-items:flex-end;opacity:0;pointer-events:none;transition:opacity .25s;}
@@ -1639,9 +1639,9 @@ function openNewIlan(){
           <select class="inp" id="ni-to"><option value="">İl Seçin</option>${cityOpts}</select>
         </div>
       </div>
-      <div style="display:flex;gap:10px">
-        <div class="inp-group" style="flex:1"><label class="inp-lbl">Tarih</label><input class="inp" type="date" id="ni-date-f"></div>
-        <div class="inp-group" style="flex:1"><label class="inp-lbl">Saat</label><input class="inp" type="time" id="ni-time"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="inp-group"><label class="inp-lbl">Tarih</label><input class="inp" type="date" id="ni-date-f" style="min-width:0;width:100%"></div>
+        <div class="inp-group"><label class="inp-lbl">Saat</label><input class="inp" type="time" id="ni-time" style="min-width:0;width:100%"></div>
       </div>
       <div style="display:flex;gap:10px">
         <div class="inp-group" style="flex:1"><label class="inp-lbl">Ücret</label>
