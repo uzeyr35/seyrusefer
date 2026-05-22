@@ -713,17 +713,17 @@ textarea.inp{resize:none;min-height:80px;line-height:1.5;}
     <div class="settings-section">
       <div class="settings-title">BİLDİRİMLER</div>
       <div class="setting-item">
-        <div class="setting-row"><div class="sr-left"><span class="sr-ico">🔔</span> Yeni İlanlar</div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
-        <div class="setting-row"><div class="sr-left"><span class="sr-ico">⚡</span> Acil İlanlar</div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
-        <div class="setting-row"><div class="sr-left"><span class="sr-ico">💬</span> Mesajlar</div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+        <div class="setting-row"><div class="sr-left"><span class="sr-ico">🔔</span> Yeni İlanlar</div><div class="toggle on" id="tog-notif-yeni" onclick="saveToggle('notif_yeni',this)"></div></div>
+        <div class="setting-row"><div class="sr-left"><span class="sr-ico">⚡</span> Acil İlanlar</div><div class="toggle on" id="tog-notif-acil" onclick="saveToggle('notif_acil',this)"></div></div>
+        <div class="setting-row"><div class="sr-left"><span class="sr-ico">💬</span> Mesajlar</div><div class="toggle on" id="tog-notif-msg" onclick="saveToggle('notif_msg',this)"></div></div>
       </div>
     </div>
     <div class="settings-section">
       <div class="settings-title">UYGULAMA</div>
       <div class="setting-item">
-        <div class="setting-row"><div class="sr-left"><span class="sr-ico">🌙</span> Koyu Tema</div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+        <div class="setting-row"><div class="sr-left"><span class="sr-ico">🌙</span> Koyu Tema</div><div class="toggle on" id="tog-dark" onclick="saveToggle('dark_theme',this)"></div></div>
         <div class="setting-row"><div class="sr-left"><span class="sr-ico">🌐</span> Dil</div><div class="sr-right">Türkçe ›</div></div>
-        <div class="setting-row"><div class="sr-left"><span class="sr-ico">📍</span> Konum İzni</div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+        <div class="setting-row"><div class="sr-left"><span class="sr-ico">📍</span> Konum İzni</div><div class="toggle on" id="tog-konum" onclick="saveToggle('konum',this)"></div></div>
       </div>
     </div>
     <div class="settings-section">
@@ -1131,7 +1131,10 @@ async function doRegister(){
   showBtnLoading('register-btn', false);
 }
 
-function guestMode(){ navTo('s4'); }
+function guestMode(){
+  if(cachedIlans.length===0) startIlanListener();
+  navTo('s4');
+}
 
 function logout(){
   stopListeners();
@@ -2183,6 +2186,29 @@ function closePrivacy(){
   const o=document.getElementById('privacy-ov');const p=document.getElementById('privacy-panel');
   if(o&&p){o.style.opacity='0';o.style.pointerEvents='none';p.style.transform='translateY(40px)';}
 }
+// ══════════════════════════════════
+// SETTINGS PERSISTENCE
+// ══════════════════════════════════
+const SETTINGS_KEYS=['notif_yeni','notif_acil','notif_msg','dark_theme','konum'];
+const TOGGLE_IDS={notif_yeni:'tog-notif-yeni',notif_acil:'tog-notif-acil',notif_msg:'tog-notif-msg',dark_theme:'tog-dark',konum:'tog-konum'};
+function saveToggle(key, el){
+  el.classList.toggle('on');
+  const val=el.classList.contains('on');
+  localStorage.setItem('ss_set_'+key, val?'1':'0');
+  if(key==='konum'&&val){
+    navigator.geolocation?.getCurrentPosition(()=>showToast('Konum izni verildi ✅'),()=>showToast('Konum izni reddedildi'));
+  }
+}
+function loadSettings(){
+  SETTINGS_KEYS.forEach(key=>{
+    const saved=localStorage.getItem('ss_set_'+key);
+    if(saved===null) return; // varsayılan 'on' kalır
+    const el=document.getElementById(TOGGLE_IDS[key]);
+    if(!el) return;
+    if(saved==='1') el.classList.add('on');
+    else el.classList.remove('on');
+  });
+}
 function openHelp() {
   const h = document.getElementById('help-ov');
   if(h){ h.style.pointerEvents='auto'; h.style.opacity='1'; document.getElementById('help-panel').style.transform='translateY(0)'; }
@@ -2205,6 +2231,7 @@ function sendHelp() {
 window.addEventListener('resize',()=>{if(mapReady){lmap.invalidateSize();}});
 // auth.onAuthStateChanged zaten yukarıda tanımlı — tüm init oradan başlar
 populateCityFilter();
+loadSettings();
 </script>
 </body>
 </html>
